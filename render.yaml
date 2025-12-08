@@ -4,7 +4,8 @@ services:
     env: node
     plan: free
     buildCommand: "npm install"
-    startCommand: "node index.js"
+    startCommand: "npm start"
+    autoDeploy: true
     envVars:
       - key: GEMINI_API_KEY
         sync: false
