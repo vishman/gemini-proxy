@@ -1,19 +1,16 @@
-/* FILE: index.js
-   Update this in your GitHub repo 'gemini-proxy' and redeploy on Render.
-*/
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 app.use(express.json());
 
-// Initialize Gemini with the Key stored in Render Environment Variables
+// Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/assess-risk', async (req, res) => {
   try {
+    console.log("Received request:", req.body); // Log for debugging
     const merchant = req.body;
     
-    // Construct the Prompt
     const prompt = `
       You are a Risk Officer. Evaluate this merchant.
       Name: ${merchant.business_name}
@@ -34,14 +31,13 @@ app.post('/assess-risk', async (req, res) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-
-    // Clean markdown if Gemini adds it
-    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
+    // Clean markdown
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     res.json(JSON.parse(cleanJson));
 
   } catch (error) {
-    console.error(error);
+    console.error("Proxy Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
