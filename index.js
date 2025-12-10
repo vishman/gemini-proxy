@@ -11,9 +11,9 @@ app.post('/assess-risk', async (req, res) => {
   try {
     console.log("Received request for:", req.body.business_name);
     const merchant = req.body;
-    
-    // CHANGE: Using 'gemini-pro' which is the standard stable model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    // Use the newer, faster model supported by the SDK update
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
       Act as a Risk Compliance Officer. Evaluate this merchant:
@@ -34,15 +34,13 @@ app.post('/assess-risk', async (req, res) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    
-    // Clean up JSON formatting
+
     const cleanJson = text.replace(/^```json/g, '').replace(/```$/g, '').trim();
-    
+
     res.json(JSON.parse(cleanJson));
 
   } catch (error) {
     console.error("Gemini Error:", error);
-    // Respond with the specific error message to see it in n8n
     res.status(500).json({ error: error.message });
   }
 });
