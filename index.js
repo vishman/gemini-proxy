@@ -1,5 +1,9 @@
-const express = require('express');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+/* FILE: index.js
+   ES Module version compatible with your package.json
+*/
+import express from 'express';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 const app = express();
 app.use(express.json());
 
@@ -8,23 +12,23 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/assess-risk', async (req, res) => {
   try {
-    console.log("Received request:", req.body); // Log for debugging
-    const merchant = req.body;
+    console.log("Processing Request for:", req.body.business_name);
     
+    const merchant = req.body;
     const prompt = `
-      You are a Risk Officer. Evaluate this merchant.
-      Name: ${merchant.business_name}
-      Industry: ${merchant.industry}
-      Revenue: ${merchant.revenue}
-      Years: ${merchant.years}
+      Act as a Risk Compliance Officer. Evaluate this merchant:
+      - Business: ${merchant.business_name}
+      - Industry: ${merchant.industry}
+      - Revenue: ${merchant.revenue}
+      - Years: ${merchant.years}
 
       Rules:
-      - Crypto/Gambling = High Risk (Score > 90)
-      - Years < 1 = Medium Risk (Score > 60)
-      - Otherwise = Low Risk (Score < 20)
+      1. If Industry is 'Cryptocurrency' or 'Gambling' -> Score > 90 (High Risk).
+      2. If Years < 1 -> Score > 60 (Medium Risk).
+      3. Otherwise -> Score < 20 (Low Risk).
 
-      Output strictly valid JSON:
-      { "risk_score": number, "decision": "APPROVED" or "MANUAL_REVIEW", "reason": "string" }
+      Return ONLY valid JSON:
+      { "risk_score": number, "decision": "APPROVED" or "MANUAL_REVIEW", "reason": "short explanation" }
     `;
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -32,17 +36,18 @@ app.post('/assess-risk', async (req, res) => {
     const response = await result.response;
     const text = response.text();
     
-    // Clean markdown
-    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Clean up JSON if Gemini adds markdown formatting
+    const cleanJson = text.replace(/^```json/g, '').replace(/```$/g, '').trim();
+    
     res.json(JSON.parse(cleanJson));
 
   } catch (error) {
-    console.error("Proxy Error:", error);
+    console.error("Gemini Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Proxy listening on port ${port}`);
+  console.log(`Server listening on port ${port}`);
 });
