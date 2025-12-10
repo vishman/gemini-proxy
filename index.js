@@ -4,14 +4,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const app = express();
 app.use(express.json());
 
+// Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/assess-risk', async (req, res) => {
   try {
     console.log("Received request for:", req.body.business_name);
     const merchant = req.body;
-
-    // Using 'gemini-pro' as it is the most stable model alias
+    
+    // CHANGE: Using 'gemini-pro' which is the standard stable model
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
@@ -33,12 +34,15 @@ app.post('/assess-risk', async (req, res) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-
+    
+    // Clean up JSON formatting
     const cleanJson = text.replace(/^```json/g, '').replace(/```$/g, '').trim();
+    
     res.json(JSON.parse(cleanJson));
 
   } catch (error) {
     console.error("Gemini Error:", error);
+    // Respond with the specific error message to see it in n8n
     res.status(500).json({ error: error.message });
   }
 });
