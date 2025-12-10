@@ -1,60 +1,52 @@
-import express from "express";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-import cors from "cors";
-
-dotenv.config();
+/* FILE: index.js
+   Update this in your GitHub repo 'gemini-proxy' and redeploy on Render.
+*/
+const express = require('express');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
-
 app.use(express.json());
-app.use(cors());
 
-// ---------------------------
-// 🔹 HEALTH CHECK ROUTE
-// ---------------------------
-app.get("/test", (req, res) => {
-  res.json({ status: "OK", message: "Your Gemini proxy is running on Render!" });
-});
+// Initialize Gemini with the Key stored in Render Environment Variables
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ---------------------------
-// 🔹 MAIN GEMINI PROXY ROUTE
-// ---------------------------
-app.post("/gemini", async (req, res) => {
+app.post('/assess-risk', async (req, res) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const merchant = req.body;
+    
+    // Construct the Prompt
+    const prompt = `
+      You are a Risk Officer. Evaluate this merchant.
+      Name: ${merchant.business_name}
+      Industry: ${merchant.industry}
+      Revenue: ${merchant.revenue}
+      Years: ${merchant.years}
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "API key missing in environment variables",
-      });
-    }
+      Rules:
+      - Crypto/Gambling = High Risk (Score > 90)
+      - Years < 1 = Medium Risk (Score > 60)
+      - Otherwise = Low Risk (Score < 20)
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      Output strictly valid JSON:
+      { "risk_score": number, "decision": "APPROVED" or "MANUAL_REVIEW", "reason": "string" }
+    `;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body),
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    const data = await response.json();
-    res.json(data);
-  } catch (err) {
-    console.error("Proxy Error:", err);
-    res.status(500).json({
-      error: "Proxy failed",
-      details: err.message,
-    });
+    // Clean markdown if Gemini adds it
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    res.json(JSON.parse(cleanJson));
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-// ---------------------------
-// 🔹 PORT HANDLER
-// ---------------------------
-const PORT = process.env.PORT || 10000;
-
-app.listen(PORT, () => {
-  console.log(`Gemini Proxy running on Render, port: ${PORT}`);
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Proxy listening on port ${port}`);
 });
-
-export default app;
