@@ -1,5 +1,5 @@
 /* FILE: index.js
-   ES Module version compatible with your package.json
+   Updated to use 'import' for compatibility with your project settings.
 */
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -7,14 +7,16 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const app = express();
 app.use(express.json());
 
-// Initialize Gemini
+// Initialize Gemini with the Key stored in Render Environment Variables
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/assess-risk', async (req, res) => {
   try {
-    console.log("Processing Request for:", req.body.business_name);
+    console.log("Received request for:", req.body.business_name);
     
     const merchant = req.body;
+    
+    // Construct the Prompt
     const prompt = `
       Act as a Risk Compliance Officer. Evaluate this merchant:
       - Business: ${merchant.business_name}
@@ -36,13 +38,13 @@ app.post('/assess-risk', async (req, res) => {
     const response = await result.response;
     const text = response.text();
     
-    // Clean up JSON if Gemini adds markdown formatting
+    // Clean up markdown if Gemini adds it (e.g. ```json ... ```)
     const cleanJson = text.replace(/^```json/g, '').replace(/```$/g, '').trim();
     
     res.json(JSON.parse(cleanJson));
 
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Proxy Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
